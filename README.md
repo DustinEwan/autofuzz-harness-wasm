@@ -15,7 +15,7 @@ Install runs `cargo build --release`, then drives the conformance suite against 
 A scan project names the harness and no command, because the module is the scan target, not a plugin property:
 
 ```json
-{ "codebase": { "harness": "wasm", "include": ["**/*.wasm"] } }
+{ "harness": { "name": "wasm", "include": ["**/*.wasm"] } }
 ```
 
 The plugin takes the module from the first non-flag argument or, failing that, the first `.wasm` under the scan root. To try it on the fixture that ships here:

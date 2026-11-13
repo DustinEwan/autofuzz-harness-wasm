@@ -1,7 +1,7 @@
 {
   "project": "wasm-probe",
-  "codebase": {
-    "harness": "wasm",
+  "harness": {
+    "name": "wasm",
     "include": [
       "**/*.wasm"
     ]

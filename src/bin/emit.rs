@@ -93,11 +93,11 @@ fn render_module() -> Vec<u8> {
 fn autofuzz_json() -> String {
     serde_json::json!({
         "project": "conformance-wasm",
-        "codebase": {
+        "harness": {
             // No `command` and no module argument: the plugin the suite launches is the one
             // `afz-harness.json` names, and the module is the first `.wasm` under `AFZ_ROOT`,
             // which the driver points at this rendered project.
-            "harness": "wasm",
+            "name": "wasm",
             "include": ["**/*.wasm"],
         },
         "oracles": {},
