@@ -1,0 +1,24 @@
+harness wasm 0.1.0 (design-time), strategy Guided, seed 0x5e3a91c4
+finding afz:f:65ea2703 at invocation 1: failed error while executing at wasm backtrace:
+    0:   0x1c14 - wasm_probe.wasm!__rustc[3d2f79520d6fa809]::__rust_abort
+    1:    0x23b - wasm_probe.wasm!__rustc[3d2f79520d6fa809]::__rust_start_panic
+    2:    0x636 - wasm_probe.wasm!__rustc[3d2f79520d6fa809]::rust_panic
+    3:    0x61a - wasm_probe.wasm!std[d775520e4a0009e6]::panicking::panic_with_hook
+    4:    0x3d9 - wasm_probe.wasm!std[d775520e4a0009e6]::panicking::panic_handler::{closure#0}
+    5:    0x373 - wasm_probe.wasm!std[d775520e4a0009e6]::sys::backtrace::__rust_end_short_backtrace::<std[d775520e4a0009e6]::panicking::panic_handler::{closure#0}, !>
+    6:   0x2800 - wasm_probe.wasm!__rustc[3d2f79520d6fa809]::rust_begin_unwind
+    7:   0x3232 - wasm_probe.wasm!core[37ee0ce0c4cd57d5]::panicking::panic_fmt
+    8:   0x3e2d - wasm_probe.wasm!core[37ee0ce0c4cd57d5]::panicking::panic_const::panic_const_mul_overflow
+    9:    0x1e5 - wasm_probe.wasm!probe (an earlier scan reported this identity, so it is not shrunk again)
+finding afz:f:383cd71d at invocation 6: failed error while executing at wasm backtrace:
+    0:   0x1c14 - wasm_probe.wasm!__rustc[3d2f79520d6fa809]::__rust_abort
+    1:    0x23b - wasm_probe.wasm!__rustc[3d2f79520d6fa809]::__rust_start_panic
+    2:    0x636 - wasm_probe.wasm!__rustc[3d2f79520d6fa809]::rust_panic
+    3:    0x61a - wasm_probe.wasm!std[d775520e4a0009e6]::panicking::panic_with_hook
+    4:    0x3d9 - wasm_probe.wasm!std[d775520e4a0009e6]::panicking::panic_handler::{closure#0}
+    5:    0x373 - wasm_probe.wasm!std[d775520e4a0009e6]::sys::backtrace::__rust_end_short_backtrace::<std[d775520e4a0009e6]::panicking::panic_handler::{closure#0}, !>
+    6:   0x2800 - wasm_probe.wasm!__rustc[3d2f79520d6fa809]::rust_begin_unwind
+    7:   0x3232 - wasm_probe.wasm!core[37ee0ce0c4cd57d5]::panicking::panic_fmt
+    8:   0x3e2d - wasm_probe.wasm!core[37ee0ce0c4cd57d5]::panicking::panic_const::panic_const_mul_overflow
+    9:    0x1f7 - wasm_probe.wasm!probe (an earlier scan reported this identity, so it is not shrunk again)
+finding afz:f:c87c7a2a at invocation 104: deadline took 2033 ms against a 2000 ms deadline (an earlier scan reported this identity, so it is not shrunk again)

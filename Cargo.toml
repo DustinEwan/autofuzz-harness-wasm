@@ -1,0 +1,41 @@
+[package]
+name = "afz-wasm"
+description = "autofuzz wasm harness plugin: a wasmtime runner that speaks the plugin protocol over stdio"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+license = "MIT"
+publish = false
+
+[[bin]]
+name = "afz-wasm"
+path = "src/main.rs"
+
+# The conformance emitter: renders the fixture module, `autofuzz.json`, and the manifest.
+[[bin]]
+name = "afz-wasm-emit"
+path = "src/bin/emit.rs"
+
+# The conformance project's fixture validator: inspects the rendered module with wasmtime and
+# wasmparser, with no protocol and no plugin in the path.
+[[bin]]
+name = "afz-wasm-check"
+path = "src/bin/check.rs"
+
+[dependencies]
+# The wire types are the engine's, consumed from the engine repository's git history: they are
+# one contract written once, not a copy that can drift.
+afz-protocol = { git = "https://github.com/DustinEwan/autofuzz.git", branch = "master" }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+thiserror = "2.0.21"
+sha2 = "0.11.1"
+wasmtime = "50.0.1"
+wasmparser = "0.263.0"
+wasm-encoder = { version = "0.263.0", features = ["wasmparser"] }
+rustc-demangle = "0.1.28"
+
+[profile.release]
+# Inherited from the engine workspace, where the wasm runner's arithmetic is checked today:
+# dropping it would silently change what the release build does on overflow.
+overflow-checks = true

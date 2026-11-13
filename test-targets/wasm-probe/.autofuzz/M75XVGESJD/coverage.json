@@ -1,0 +1,58 @@
+{
+  "entries": [
+    {
+      "edge": 0,
+      "url": "/home/dusti/repos/autofuzz/targets/wasm-probe/target/wasm32-unknown-unknown/release/wasm_probe.wasm#probe",
+      "start": 5,
+      "end": 13
+    },
+    {
+      "edge": 1,
+      "url": "/home/dusti/repos/autofuzz/targets/wasm-probe/target/wasm32-unknown-unknown/release/wasm_probe.wasm#probe",
+      "start": 24,
+      "end": 32
+    },
+    {
+      "edge": 2,
+      "url": "/home/dusti/repos/autofuzz/targets/wasm-probe/target/wasm32-unknown-unknown/release/wasm_probe.wasm#probe",
+      "start": 34,
+      "end": 42
+    },
+    {
+      "edge": 3,
+      "url": "/home/dusti/repos/autofuzz/targets/wasm-probe/target/wasm32-unknown-unknown/release/wasm_probe.wasm#probe",
+      "start": 78,
+      "end": 86
+    },
+    {
+      "edge": 4,
+      "url": "/home/dusti/repos/autofuzz/targets/wasm-probe/target/wasm32-unknown-unknown/release/wasm_probe.wasm#probe",
+      "start": 113,
+      "end": 121
+    },
+    {
+      "edge": 5,
+      "url": "/home/dusti/repos/autofuzz/targets/wasm-probe/target/wasm32-unknown-unknown/release/wasm_probe.wasm#probe",
+      "start": 123,
+      "end": 131
+    },
+    {
+      "edge": 6,
+      "url": "/home/dusti/repos/autofuzz/targets/wasm-probe/target/wasm32-unknown-unknown/release/wasm_probe.wasm#probe",
+      "start": 133,
+      "end": 141
+    },
+    {
+      "edge": 7,
+      "url": "/home/dusti/repos/autofuzz/targets/wasm-probe/target/wasm32-unknown-unknown/release/wasm_probe.wasm#probe",
+      "start": 143,
+      "end": 151
+    },
+    {
+      "edge": 8,
+      "url": "/home/dusti/repos/autofuzz/targets/wasm-probe/target/wasm32-unknown-unknown/release/wasm_probe.wasm#probe",
+      "start": 153,
+      "end": 161
+    }
+  ]
+}

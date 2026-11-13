@@ -1,0 +1,24 @@
+{
+  "project": "wasm-probe",
+  "codebase": {
+    "harness": "wasm",
+    "include": [
+      "**/*.wasm"
+    ]
+  },
+  "oracles": {},
+  "budget": {
+    "invocations": 20000,
+    "wallClockMs": 900000,
+    "workers": 0,
+    "maxCorpus": 2048,
+    "strategy": "guided"
+  },
+  "output": {
+    "dir": ".autofuzz",
+    "renderers": [
+      "json",
+      "markdown"
+    ]
+  }
+}

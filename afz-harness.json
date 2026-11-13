@@ -1,0 +1,6 @@
+{
+  "name": "wasm",
+  "build": [["cargo", "build", "--release"]],
+  "command": ["target/release/afz-wasm"],
+  "conformance": { "emitter": ["target/release/afz-wasm-emit"] }
+}
