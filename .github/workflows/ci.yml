@@ -1,0 +1,55 @@
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # The plugin's own tests, which prove `afz-protocol` resolves as a git dependency, plus the
+  # probe module the README's scan example builds: it stays real by being compiled here.
+  harness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Tests
+        run: cargo test
+
+      - name: Build the probe module
+        run: cargo build --release --target wasm32-unknown-unknown --manifest-path test-targets/wasm-probe/Cargo.toml
+
+  # The conformance gate, run through the product command rather than a bespoke harness:
+  # `afz install-harness` builds the plugin, the emitter, and the check binary, drives the
+  # suite, and prints the report. No wasm toolchain is needed here: the emitter synthesizes
+  # its module with `wasm-encoder`.
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install afz
+        run: cargo install --git https://github.com/DustinEwan/autofuzz.git --bin afz --locked
+
+      - name: Validate
+        run: afz install-harness "$GITHUB_WORKSPACE" --json > report.json
+
+      # The goldens this repository publishes: zero violations, the four properties a bare
+      # module realizes, six justified absences, and the check binary agreeing on four of the
+      # seven fixture-shaped ids. A deleted or gutted validator fails the second assertion.
+      - name: Assert the report
+        run: |
+          jq -e '((.violations | length) == 0)
+                 and ((.template.properties | map(select(.verdict == "pass") | .id) | sort) == ["coverage-digest-live","crash-unguarded","unconstructible-receiver","unrepresentable-symbol"])
+                 and ((.template.properties | map(select(.verdict == "not-applicable")) | length) == 6)' report.json
+          jq -e '((.validator.properties | map(select(.verdict == "pass")) | length) == 4)
+                 and ((.validator.properties | map(select(.verdict == "not-applicable") | .id) | sort) == ["guard-refusal","method-receiver","private-symbol"])' report.json
