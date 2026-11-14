@@ -14,7 +14,7 @@ dependencies = [
 [[package]]
 name = "afz-protocol"
 version = "0.1.0"
-source = "git+https://github.com/DustinEwan/autofuzz.git?branch=master#9a94087af46265fe518f9746c5843f923f6ec0ba"
+source = "git+https://github.com/DustinEwan/autofuzz.git?branch=main#fbccb9c7e3d03db626199d729716b5fb3fdf7093"
 dependencies = [
  "schemars",
  "serde",

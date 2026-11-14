@@ -171,6 +171,9 @@ fn handle(plugin: &mut Plugin, request: &Request) -> Response {
         // claim the capability, and the finding's `inputs/` JSON is the replayable artifact.
         Method::Reproducer => Err((rpc::METHOD_NOT_FOUND, "the wasm harness renders no reproducer script".into())),
         Method::CoverageMap => serde_json::to_value(plugin.coverage_map()).map_err(|e| (INVALID_REQUEST, e.to_string())),
+        // The module file discovery read is the environment: nothing outside this
+        // process can be down, so the handshake does not claim `readiness`.
+        Method::Ready => Err((rpc::METHOD_NOT_FOUND, "the wasm harness declares no readiness: its environment is the module file".into())),
     };
     match result {
         Ok(value) => Response::ok(id, value),

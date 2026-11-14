@@ -25,7 +25,7 @@ path = "src/bin/check.rs"
 [dependencies]
 # The wire types are the engine's, consumed from the engine repository's git history: they are
 # one contract written once, not a copy that can drift.
-afz-protocol = { git = "https://github.com/DustinEwan/autofuzz.git", branch = "master" }
+afz-protocol = { git = "https://github.com/DustinEwan/autofuzz.git", branch = "main" }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 thiserror = "2.0.21"
