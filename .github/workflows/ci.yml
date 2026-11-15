@@ -43,13 +43,13 @@ jobs:
       - name: Validate
         run: afz install-harness "$GITHUB_WORKSPACE" --json > report.json
 
-      # The goldens this repository publishes: zero violations, the four properties a bare
-      # module realizes, six justified absences, and the check binary agreeing on four of the
+      # The goldens this repository publishes: zero violations, the five properties a bare
+      # module realizes, seven justified absences, and the check binary agreeing on four of the
       # seven fixture-shaped ids. A deleted or gutted validator fails the second assertion.
       - name: Assert the report
         run: |
           jq -e '((.violations | length) == 0)
-                 and ((.template.properties | map(select(.verdict == "pass") | .id) | sort) == ["coverage-digest-live","crash-unguarded","unconstructible-receiver","unrepresentable-symbol"])
-                 and ((.template.properties | map(select(.verdict == "not-applicable")) | length) == 6)' report.json
+                 and ((.template.properties | map(select(.verdict == "pass") | .id) | sort) == ["coverage-digest-live","crash-unguarded","opaque-return","unconstructible-receiver","unrepresentable-symbol"])
+                 and ((.template.properties | map(select(.verdict == "not-applicable")) | length) == 7)' report.json
           jq -e '((.validator.properties | map(select(.verdict == "pass")) | length) == 4)
                  and ((.validator.properties | map(select(.verdict == "not-applicable") | .id) | sort) == ["guard-refusal","method-receiver","private-symbol"])' report.json
