@@ -57,7 +57,7 @@ A harness with no `conformance` block installs only with `--no-validate`, and `a
 
 ## The conformance project
 
-`src/bin/emit.rs` (`afz-wasm-emit`) renders a four-export module with `wasm-encoder` and the manifest that names the export behind each template property. `src/bin/check.rs` (`afz-wasm-check`) is the project's own fixture validator: it loads the rendered module with `wasmtime` and reads it with `wasmparser` — no protocol, no plugin in the path — and the suite requires its verdicts to agree with the plugin's.
+`src/bin/emit.rs` (`afz-wasm-emit`) renders a five-export module with `wasm-encoder` and the manifest that names the export behind each template property, or the reason the language cannot speak for it. `src/bin/check.rs` (`afz-wasm-check`) is the project's own fixture validator: it loads the rendered module with `wasmtime` and reads it with `wasmparser` — no protocol, no plugin in the path — and the suite requires its verdicts to agree with the plugin's.
 
 ## The contract
 

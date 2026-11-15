@@ -500,4 +500,13 @@ mod tests {
         assert_eq!(names, vec!["through"], "the runtime's frame must not be what a finding is keyed on: {names:?}");
     }
 
+    /// A `funcref` result is a value the wire vocabulary has no node for. The runner reports what
+    /// arrived and `returned` answers `None`, which is what lets the call be `ok` with no value
+    /// rather than a failure of the export that returned it.
+    #[test]
+    fn a_funcref_result_has_no_wire_form() {
+        assert!(returned(&Val::I32(7)).is_some(), "an i32 result is reportable");
+        assert!(returned(&Val::FuncRef(None)).is_none(), "a funcref result is not");
+    }
+
 }

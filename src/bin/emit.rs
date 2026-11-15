@@ -1,14 +1,14 @@
 //! Render the conformance fixture project for the wasm harness.
 //!
 //! `afz validate-harness` and `afz install-harness` validate a plugin against the template
-//! (`crates/afz-conformance/template/v1.json` in the engine repository): ten semantic
+//! (`crates/afz-conformance/template/v1.json` in the engine repository): twelve semantic
 //! properties stated as wire-level expectations. This emitter synthesizes a bare module with
 //! `wasm-encoder` - no crate compile, no `wasm32-unknown-unknown` target - writes the
 //! `autofuzz.json` that points the plugin at it, and writes
 //! `afz-conformance-manifest.json` naming the symbol behind each property. The suite, not
 //! this file, decides pass/fail.
 //!
-//! The module carries exactly four exports, one per property a bare module can realize, and
+//! The module carries exactly five exports, one per property a bare module can realize, and
 //! nothing else: no `__`-prefixed plumbing and no counters memory are exported, so discovery
 //! sees only the fixture.
 //!
@@ -32,10 +32,11 @@ fn render_module() -> Vec<u8> {
     types.ty().function(vec![ValType::I32], vec![ValType::I32]);
     types.ty().function(vec![ValType::I32], vec![ValType::I32, ValType::I32]);
     types.ty().function(vec![ValType::FUNCREF], vec![ValType::I32]);
+    types.ty().function(vec![ValType::I32], vec![ValType::FUNCREF]);
     module.section(&types);
 
     let mut funcs = FunctionSection::new();
-    for type_index in [0, 0, 1, 2] {
+    for type_index in [0, 0, 1, 2, 3] {
         funcs.function(type_index);
     }
     module.section(&funcs);
@@ -45,6 +46,7 @@ fn render_module() -> Vec<u8> {
     exports.export("branch", ExportKind::Func, 1);
     exports.export("pair", ExportKind::Func, 2);
     exports.export("apply", ExportKind::Func, 3);
+    exports.export("opaque", ExportKind::Func, 4);
     module.section(&exports);
 
     let mut code = CodeSection::new();
@@ -85,6 +87,13 @@ fn render_module() -> Vec<u8> {
     apply.instruction(&Instruction::I32Const(0));
     apply.instruction(&Instruction::End);
     code.function(&apply);
+    // opaque-return: the result is a funcref, which the wire vocabulary has no node for, so
+    // the plugin must answer `ok` with no value rather than fail the call. The parameter is
+    // never read: every input reaches the return.
+    let mut opaque = Function::new(vec![]);
+    opaque.instruction(&Instruction::RefFunc(0));
+    opaque.instruction(&Instruction::End);
+    code.function(&opaque);
     module.section(&code);
 
     module.finish()
@@ -136,6 +145,10 @@ fn manifest(check: &Path, module: &Path) -> String {
             "reproducer-script": { "notApplicable": "the handshake does not declare `reproducer`: a bare module carries no source to render a script from" },
             "deadline-sleep": {
                 "notApplicable": "the runner stops an endless export with ticks and answers `ok`, which is not the `deadline-cut` channel this rule names"
+            },
+            "opaque-return": { "symbol": "opaque", "input": [number(0)] },
+            "unbuildable-symbol": {
+                "notApplicable": "the plugin builds one artifact, the single .wasm module the scan project names, and discovery lists the exports of that already-compiled module: there is no per-symbol build that can fail while its siblings survive, and a module that fails to compile or instantiate leaves the process with no targets at all. The isolation half has no fixture either, because a module export is a free function and this manifest realizes no `method-receiver`"
             },
         },
         // The project judges its own fixture: the check binary loads the rendered module with
