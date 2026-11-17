@@ -44,13 +44,22 @@ struct Target {
     arguments: Vec<wasmtime::ValType>,
 }
 
-struct Plugin {
+/// The instrumented module and the instance built over it. It exists only once a request needs
+/// it: the handshake is answered before any scan project exists (spec §6), so a host that starts
+/// the plugin to read its handshake never makes it read a file.
+struct Engine {
     runner: runner::Runner,
     blocks: Vec<instrument::Block>,
     names: std::collections::HashMap<u32, String>,
     targets: Vec<Target>,
+}
+
+struct Plugin {
+    /// The module path the scan project's `command` names, when it names one.
+    argv: Vec<String>,
     /// The scan project's root, which include and exclude patterns are written relative to.
     root: PathBuf,
+    engine: Option<Engine>,
 }
 
 fn main() {
@@ -63,24 +72,9 @@ fn main() {
 fn serve() -> Result<(), String> {
     let argv: Vec<String> = std::env::args().skip(1).collect();
     let root = std::env::var("AFZ_ROOT").unwrap_or_else(|_| std::env::current_dir().map(|d| d.display().to_string()).unwrap_or_default());
-    let path = module_path(&argv, Path::new(&root))?;
-    let raw = std::fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-    let instrumented = instrument::instrument(&raw).map_err(|e| format!("{}: {e}", path.display()))?;
-    // The engine drains a plugin's stderr and keeps the lines, so this is where a reader of a scan
-    // can see what the coverage numbers were measured over.
-    eprintln!(
-        "afz-wasm: {} instrumented blocks, {} runtime functions left alone",
-        instrumented.blocks.len(),
-        instrumented.skipped_functions,
-    );
-    let runner = runner::Runner::new(&path, &instrumented.bytes, &instrumented.blocks)?;
-    let mut plugin = Plugin {
-        runner,
-        blocks: instrumented.blocks,
-        names: instrumented.function_names,
-        targets: Vec::new(),
-        root: PathBuf::from(&root),
-    };
+    // Nothing is read here. The first request the host sends is the handshake, and the module
+    // belongs to a scan project that need not exist yet (spec §6).
+    let mut plugin = Plugin { argv, root: PathBuf::from(&root), engine: None };
 
     let mut reader = rpc::buffered(io::stdin());
     let mut writer = rpc::buffered_writer(io::stdout());
@@ -146,7 +140,10 @@ fn handle(plugin: &mut Plugin, request: &Request) -> Response {
     let result: Result<serde_json::Value, (i64, String)> = match method {
         Method::Handshake => serde_json::to_value(handshake()).map_err(|e| (INVALID_REQUEST, e.to_string())),
         Method::Discover => match parse::<DiscoverReq>(&params) {
-            Ok(req) => serde_json::to_value(plugin.discover(&req)).map_err(|e| (INVALID_REQUEST, e.to_string())),
+            Ok(req) => match plugin.discover(&req) {
+                Ok(discovery) => serde_json::to_value(discovery).map_err(|e| (INVALID_REQUEST, e.to_string())),
+                Err(e) => Err(e),
+            },
             Err(e) => Err(e),
         },
         Method::Prepare => match parse::<PrepareReq>(&params) {
@@ -170,7 +167,10 @@ fn handle(plugin: &mut Plugin, request: &Request) -> Response {
         // A standalone reproducer needs a runner for a core module; the handshake does not
         // claim the capability, and the finding's `inputs/` JSON is the replayable artifact.
         Method::Reproducer => Err((rpc::METHOD_NOT_FOUND, "the wasm harness renders no reproducer script".into())),
-        Method::CoverageMap => serde_json::to_value(plugin.coverage_map()).map_err(|e| (INVALID_REQUEST, e.to_string())),
+        Method::CoverageMap => match plugin.coverage_map() {
+            Ok(map) => serde_json::to_value(map).map_err(|e| (INVALID_REQUEST, e.to_string())),
+            Err(e) => Err(e),
+        },
         // The module file discovery read is the environment: nothing outside this
         // process can be down, so the handshake does not claim `readiness`.
         Method::Ready => Err((rpc::METHOD_NOT_FOUND, "the wasm harness declares no readiness: its environment is the module file".into())),
@@ -253,24 +253,53 @@ fn matches_segment(pattern: &str, text: &str) -> bool {
 }
 
 impl Plugin {
-    fn discover(&mut self, req: &DiscoverReq) -> Discovery {
-        let module = self.runner.path().display().to_string();
+    /// The instrumented module, read on the first request that needs it. A host that sends only the
+    /// handshake never makes this plugin open a file, which is what lets any `prpc/1` host start it
+    /// to learn the profile (spec §6).
+    fn engine(&mut self) -> Result<&mut Engine, String> {
+        if self.engine.is_none() {
+            let path = module_path(&self.argv, &self.root)?;
+            let raw = std::fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+            let instrumented = instrument::instrument(&raw).map_err(|e| format!("{}: {e}", path.display()))?;
+            // The engine drains a plugin's stderr and keeps the lines, so this is where a reader of a
+            // scan can see what the coverage numbers were measured over.
+            eprintln!(
+                "afz-wasm: {} instrumented blocks, {} runtime functions left alone",
+                instrumented.blocks.len(),
+                instrumented.skipped_functions,
+            );
+            let runner = runner::Runner::new(&path, &instrumented.bytes, &instrumented.blocks)?;
+            self.engine = Some(Engine {
+                runner,
+                blocks: instrumented.blocks,
+                names: instrumented.function_names,
+                targets: Vec::new(),
+            });
+        }
+        Ok(self.engine.as_mut().expect("the engine is loaded above"))
+    }
+
+    fn discover(&mut self, req: &DiscoverReq) -> Result<Discovery, (i64, String)> {
+        // Held apart from the borrow of `self.engine`, which the patterns are written relative to.
+        let root = self.root.clone();
+        let engine = self.engine().map_err(|e| (rpc::PLUGIN_ERROR, e))?;
+        let module = engine.runner.path().display().to_string();
         // Patterns are written relative to the scan project and the module's path is absolute, so
         // the match runs against the relative form.
-        let relative = self
+        let relative = engine
             .runner
             .path()
-            .strip_prefix(&self.root)
-            .unwrap_or(self.runner.path())
+            .strip_prefix(&root)
+            .unwrap_or(engine.runner.path())
             .display()
             .to_string();
         let excluded = req.exclude.as_ref().is_some_and(|p| p.iter().any(|g| matches_pattern(g, &relative)));
         let included = req.include.as_ref().is_none_or(|p| p.iter().any(|g| matches_pattern(g, &relative)));
         let mut targets = Vec::new();
         let mut skipped = Vec::new();
-        self.targets.clear();
+        engine.targets.clear();
 
-        for (name, ty) in self.runner.exports() {
+        for (name, ty) in engine.runner.exports() {
             // `__wasm_call_ctors` and its neighbours are the artifact's own plumbing, and the
             // counters memory belongs to the harness.
             if name == instrument::COUNTERS || name.starts_with("__") {
@@ -332,7 +361,7 @@ impl Plugin {
                 ));
                 continue;
             }
-            self.targets.push(Target { export: name.to_string(), arguments: signature.params().collect() });
+            engine.targets.push(Target { export: name.to_string(), arguments: signature.params().collect() });
             targets.push(TargetDescriptor {
                 id,
                 target_class: TargetClass::DesignTime,
@@ -348,11 +377,12 @@ impl Plugin {
                 materialization: Materialization::Constructible,
             });
         }
-        Discovery { targets, skipped }
+        Ok(Discovery { targets, skipped })
     }
 
-    fn prepare(&self, req: &PrepareReq) -> Result<PrepareResp, (i64, String)> {
-        let Some(target) = self.target(&req.target_id) else {
+    fn prepare(&mut self, req: &PrepareReq) -> Result<PrepareResp, (i64, String)> {
+        let engine = self.engine().map_err(|e| (rpc::PLUGIN_ERROR, e))?;
+        let Some(target) = engine.target(&req.target_id) else {
             return Err((INVALID_REQUEST, format!("no target with id {}", req.target_id)));
         };
         if req.values.len() != target.arguments.len() {
@@ -369,7 +399,8 @@ impl Plugin {
     }
 
     fn invoke(&mut self, req: &InvokeReq) -> Result<afz_protocol::Outcome, (i64, String)> {
-        let target = self.target(&req.target_id).cloned().ok_or((INVALID_REQUEST, format!("no target with id {}", req.target_id)))?;
+        let engine = self.engine().map_err(|e| (rpc::PLUGIN_ERROR, e))?;
+        let target = engine.target(&req.target_id).cloned().ok_or((INVALID_REQUEST, format!("no target with id {}", req.target_id)))?;
         let mut arguments = Vec::new();
         for (ty, value) in target.arguments.iter().zip(&req.values) {
             match runner::argument(ty, &value.node) {
@@ -385,7 +416,7 @@ impl Plugin {
             }
         }
         let deadline = std::time::Duration::from_millis(req.deadline_ms);
-        let executed = self
+        let executed = engine
             .runner
             .invoke(&target.export, &arguments, deadline, req.collect_coverage)
             .map_err(|e| (rpc::PLUGIN_ERROR, e))?;
@@ -406,26 +437,29 @@ impl Plugin {
         })
     }
 
-    fn coverage_map(&self) -> CoverageMap {
-        CoverageMap {
-            entries: self
+    fn coverage_map(&mut self) -> Result<CoverageMap, (i64, String)> {
+        let engine = self.engine().map_err(|e| (rpc::PLUGIN_ERROR, e))?;
+        Ok(CoverageMap {
+            entries: engine
                 .blocks
                 .iter()
                 .map(|block| CoverageEntry {
                     edge: block.edge,
                     // The name section is what says which function an edge belongs to. A module
                     // stripped of names leaves the index, which is the most a map can say.
-                    url: match self.names.get(&block.function) {
-                        Some(name) => format!("{}#{}", self.runner.path().display(), name),
-                        None => format!("{}#f{}", self.runner.path().display(), block.function),
+                    url: match engine.names.get(&block.function) {
+                        Some(name) => format!("{}#{}", engine.runner.path().display(), name),
+                        None => format!("{}#f{}", engine.runner.path().display(), block.function),
                     },
                     start: u64::from(block.offset),
                     end: u64::from(block.offset) + u64::from(block.length),
                 })
                 .collect(),
-        }
+        })
     }
+}
 
+impl Engine {
     fn target(&self, id: &str) -> Option<&Target> {
         self.targets.iter().find(|t| target_id(&self.module_name(), &t.export) == id)
     }
